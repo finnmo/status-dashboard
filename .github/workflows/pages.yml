@@ -60,28 +60,25 @@ jobs:
         echo "/* generated $(date -u) */" > dist/config.js
         echo "window.SERVICE_CONFIG = [" >> dist/config.js
         
-        # Add each service if both URL and NAME are set
-        if [ ! -z "$CURTIN_WEBSITE_URL" ] && [ ! -z "$CURTIN_WEBSITE_NAME" ]; then
-          echo "  { url: \"$CURTIN_WEBSITE_URL\", name: \"$CURTIN_WEBSITE_NAME\" }," >> dist/config.js
-        fi
-        if [ ! -z "$SMART_CAMPUS_URL" ] && [ ! -z "$SMART_CAMPUS_NAME" ]; then
-          echo "  { url: \"$SMART_CAMPUS_URL\", name: \"$SMART_CAMPUS_NAME\" }," >> dist/config.js
-        fi
-        if [ ! -z "$TRAKKA_URL" ] && [ ! -z "$TRAKKA_NAME" ]; then
-          echo "  { url: \"$TRAKKA_URL\", name: \"$TRAKKA_NAME\" }," >> dist/config.js
-        fi
-        if [ ! -z "$POWER_MONITORING_EXPERT_URL" ] && [ ! -z "$POWER_MONITORING_EXPERT_NAME" ]; then
-          echo "  { url: \"$POWER_MONITORING_EXPERT_URL\", name: \"$POWER_MONITORING_EXPERT_NAME\" }," >> dist/config.js
-        fi
-        if [ ! -z "$PARKAID_OUTDOOR_URL" ] && [ ! -z "$PARKAID_OUTDOOR_NAME" ]; then
-          echo "  { url: \"$PARKAID_OUTDOOR_URL\", name: \"$PARKAID_OUTDOOR_NAME\" }," >> dist/config.js
-        fi
-        if [ ! -z "$PARKAID_UNDERGROUND_URL" ] && [ ! -z "$PARKAID_UNDERGROUND_NAME" ]; then
-          echo "  { url: \"$PARKAID_UNDERGROUND_URL\", name: \"$PARKAID_UNDERGROUND_NAME\" }," >> dist/config.js
-        fi
-        if [ ! -z "$PARKING_SIGNAGE_URL" ] && [ ! -z "$PARKING_SIGNAGE_NAME" ]; then
-          echo "  { url: \"$PARKING_SIGNAGE_URL\", name: \"$PARKING_SIGNAGE_NAME\" }," >> dist/config.js
-        fi
+        # Function to add a service if both URL and NAME are set
+        add_service() {
+          local url=$1
+          local name=$2
+          if [ ! -z "$url" ] && [ ! -z "$name" ]; then
+            echo "  { url: \"$url\", name: \"$name\" }," >> dist/config.js
+            return 0
+          fi
+          return 1
+        }
+        
+        # Add each service
+        add_service "$CURTIN_WEBSITE_URL" "$CURTIN_WEBSITE_NAME"
+        add_service "$SMART_CAMPUS_URL" "$SMART_CAMPUS_NAME"
+        add_service "$TRAKKA_URL" "$TRAKKA_NAME"
+        add_service "$POWER_MONITORING_EXPERT_URL" "$POWER_MONITORING_EXPERT_NAME"
+        add_service "$PARKAID_OUTDOOR_URL" "$PARKAID_OUTDOOR_NAME"
+        add_service "$PARKAID_UNDERGROUND_URL" "$PARKAID_UNDERGROUND_NAME"
+        add_service "$PARKING_SIGNAGE_URL" "$PARKING_SIGNAGE_NAME"
         
         # Remove trailing comma and close array
         sed -i '$ s/,$//' dist/config.js
@@ -90,6 +87,12 @@ jobs:
         # Debug: Show the generated config (without sensitive data)
         echo "Generated config.js structure:"
         cat dist/config.js | grep -v "url:" | grep -v "name:"
+        
+        # Verify the config is not empty
+        if [ ! -s dist/config.js ]; then
+          echo "Error: config.js is empty!"
+          exit 1
+        fi
 
     # 2 → Copy static files
     - name: Copy static site
