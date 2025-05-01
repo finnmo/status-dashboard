@@ -7,9 +7,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Pull the comma-separated lists from repo secrets
-      PING_TARGETS: ${{ secrets.PING_TARGETS }}
-      SERVICE_NAMES: ${{ secrets.SERVICE_NAMES }}
+      # Individual service secrets
+      SERVICE_1_URL: ${{ secrets.SERVICE_1_URL }}
+      SERVICE_1_NAME: ${{ secrets.SERVICE_1_NAME }}
+      SERVICE_2_URL: ${{ secrets.SERVICE_2_URL }}
+      SERVICE_2_NAME: ${{ secrets.SERVICE_2_NAME }}
+      SERVICE_3_URL: ${{ secrets.SERVICE_3_URL }}
+      SERVICE_3_NAME: ${{ secrets.SERVICE_3_NAME }}
+      SERVICE_4_URL: ${{ secrets.SERVICE_4_URL }}
+      SERVICE_4_NAME: ${{ secrets.SERVICE_4_NAME }}
+      SERVICE_5_URL: ${{ secrets.SERVICE_5_URL }}
+      SERVICE_5_NAME: ${{ secrets.SERVICE_5_NAME }}
+      SERVICE_6_URL: ${{ secrets.SERVICE_6_URL }}
+      SERVICE_6_NAME: ${{ secrets.SERVICE_6_NAME }}
+      SERVICE_7_URL: ${{ secrets.SERVICE_7_URL }}
+      SERVICE_7_NAME: ${{ secrets.SERVICE_7_NAME }}
     steps:
     - uses: actions/checkout@v4
 
@@ -17,13 +29,34 @@ jobs:
     - name: Generate run-time config
       run: |
         mkdir -p dist
-        IFS=',' read -ra URLS <<< "${PING_TARGETS}"
-        IFS=',' read -ra NAMES <<< "${SERVICE_NAMES}"
         echo "/* generated $(date -u) */" > dist/config.js
         echo "window.SERVICE_CONFIG = [" >> dist/config.js
-        for i in "${!URLS[@]}"; do
-          printf "  {\n    url: \"%s\",\n    name: \"%s\"\n  },\n" "${URLS[$i]}" "${NAMES[$i]}" >> dist/config.js
-        done
+        
+        # Add each service if both URL and NAME are set
+        if [ ! -z "$SERVICE_1_URL" ] && [ ! -z "$SERVICE_1_NAME" ]; then
+          echo "  { url: \"$SERVICE_1_URL\", name: \"$SERVICE_1_NAME\" }," >> dist/config.js
+        fi
+        if [ ! -z "$SERVICE_2_URL" ] && [ ! -z "$SERVICE_2_NAME" ]; then
+          echo "  { url: \"$SERVICE_2_URL\", name: \"$SERVICE_2_NAME\" }," >> dist/config.js
+        fi
+        if [ ! -z "$SERVICE_3_URL" ] && [ ! -z "$SERVICE_3_NAME" ]; then
+          echo "  { url: \"$SERVICE_3_URL\", name: \"$SERVICE_3_NAME\" }," >> dist/config.js
+        fi
+        if [ ! -z "$SERVICE_4_URL" ] && [ ! -z "$SERVICE_4_NAME" ]; then
+          echo "  { url: \"$SERVICE_4_URL\", name: \"$SERVICE_4_NAME\" }," >> dist/config.js
+        fi
+        if [ ! -z "$SERVICE_5_URL" ] && [ ! -z "$SERVICE_5_NAME" ]; then
+          echo "  { url: \"$SERVICE_5_URL\", name: \"$SERVICE_5_NAME\" }," >> dist/config.js
+        fi
+        if [ ! -z "$SERVICE_6_URL" ] && [ ! -z "$SERVICE_6_NAME" ]; then
+          echo "  { url: \"$SERVICE_6_URL\", name: \"$SERVICE_6_NAME\" }," >> dist/config.js
+        fi
+        if [ ! -z "$SERVICE_7_URL" ] && [ ! -z "$SERVICE_7_NAME" ]; then
+          echo "  { url: \"$SERVICE_7_URL\", name: \"$SERVICE_7_NAME\" }," >> dist/config.js
+        fi
+        
+        # Remove trailing comma and close array
+        sed -i '$ s/,$//' dist/config.js
         echo "];" >> dist/config.js
 
     # 2 → Copy static files
