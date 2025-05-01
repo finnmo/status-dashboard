@@ -16,6 +16,7 @@ jobs:
       PARKAID_OUTDOOR_URL: ${{ secrets.PARKAID_OUTDOOR_URL }}
       PARKAID_UNDERGROUND_URL: ${{ secrets.PARKAID_UNDERGROUND_URL }}
       PARKING_SIGNAGE_URL: ${{ secrets.PARKING_SIGNAGE_URL }}
+      PEOPLE_COUNTER_URL: ${{ secrets.PEOPLE_COUNTER_URL }}
       
       # Service Names
       CURTIN_WEBSITE_NAME: ${{ secrets.CURTIN_WEBSITE_NAME }}
@@ -25,6 +26,8 @@ jobs:
       PARKAID_OUTDOOR_NAME: ${{ secrets.PARKAID_OUTDOOR_NAME }}
       PARKAID_UNDERGROUND_NAME: ${{ secrets.PARKAID_UNDERGROUND_NAME }}
       PARKING_SIGNAGE_NAME: ${{ secrets.PARKING_SIGNAGE_NAME }}
+      PEOPLE_COUNTER_NAME: ${{ secrets.PEOPLE_COUNTER_NAME }}
+      
     steps:
     - uses: actions/checkout@v4
 
