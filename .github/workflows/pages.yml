@@ -6,6 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: github-pages  # Explicitly specify the environment
     env:
       # Service URLs
       CURTIN_WEBSITE_URL: ${{ secrets.CURTIN_WEBSITE_URL }}
@@ -31,27 +32,21 @@ jobs:
     - name: Debug environment variables
       run: |
         echo "Checking if secrets are set:"
-        if [ ! -z "$CURTIN_WEBSITE_URL" ] && [ ! -z "$CURTIN_WEBSITE_NAME" ]; then
-          echo "Curtin Website is configured"
-        fi
-        if [ ! -z "$SMART_CAMPUS_URL" ] && [ ! -z "$SMART_CAMPUS_NAME" ]; then
-          echo "Smart Campus is configured"
-        fi
-        if [ ! -z "$TRAKKA_URL" ] && [ ! -z "$TRAKKA_NAME" ]; then
-          echo "Trakka is configured"
-        fi
-        if [ ! -z "$POWER_MONITORING_EXPERT_URL" ] && [ ! -z "$POWER_MONITORING_EXPERT_NAME" ]; then
-          echo "Power Monitoring Expert is configured"
-        fi
-        if [ ! -z "$PARKAID_OUTDOOR_URL" ] && [ ! -z "$PARKAID_OUTDOOR_NAME" ]; then
-          echo "ParkAid Outdoor is configured"
-        fi
-        if [ ! -z "$PARKAID_UNDERGROUND_URL" ] && [ ! -z "$PARKAID_UNDERGROUND_NAME" ]; then
-          echo "ParkAid Underground is configured"
-        fi
-        if [ ! -z "$PARKING_SIGNAGE_URL" ] && [ ! -z "$PARKING_SIGNAGE_NAME" ]; then
-          echo "Parking Signage is configured"
-        fi
+        echo "Number of secrets configured:"
+        env | grep -c "CURTIN_WEBSITE\|SMART_CAMPUS\|TRAKKA\|POWER_MONITORING\|PARKAID\|PARKING_SIGNAGE"
+        
+        echo "Checking each service:"
+        for service in "CURTIN_WEBSITE" "SMART_CAMPUS" "TRAKKA" "POWER_MONITORING_EXPERT" "PARKAID_OUTDOOR" "PARKAID_UNDERGROUND" "PARKING_SIGNAGE"; do
+          url_var="${service}_URL"
+          name_var="${service}_NAME"
+          if [ ! -z "${!url_var}" ] && [ ! -z "${!name_var}" ]; then
+            echo "$service is configured (both URL and NAME present)"
+          else
+            echo "$service is missing configuration:"
+            [ -z "${!url_var}" ] && echo "  - URL is missing"
+            [ -z "${!name_var}" ] && echo "  - NAME is missing"
+          fi
+        done
 
     # 1 → Write config.js **inside the publish folder** (./dist by convention)
     - name: Generate run-time config
@@ -106,6 +101,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    environment: github-pages  # Explicitly specify the environment
     permissions:
       pages: write      # to deploy
       id-token: write   # to verify deployment
