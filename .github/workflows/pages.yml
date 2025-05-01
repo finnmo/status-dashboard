@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: github-pages  # Explicitly specify the environment
+    environment: github-pages
     env:
       # Service URLs
       CURTIN_WEBSITE_URL: ${{ secrets.CURTIN_WEBSITE_URL }}
@@ -60,7 +60,10 @@ jobs:
           local url=$1
           local name=$2
           if [ ! -z "$url" ] && [ ! -z "$name" ]; then
-            echo "  { url: \"$url\", name: \"$name\" }," >> dist/config.js
+            # Escape any special characters in the values
+            url=$(echo "$url" | sed 's/"/\\"/g')
+            name=$(echo "$name" | sed 's/"/\\"/g')
+            echo "  { \"url\": \"$url\", \"name\": \"$name\" }," >> dist/config.js
             return 0
           fi
           return 1
@@ -83,11 +86,15 @@ jobs:
         echo "Generated config.js structure:"
         cat dist/config.js | grep -v "url:" | grep -v "name:"
         
-        # Verify the config is not empty
+        # Verify the config is not empty and is valid JSON
         if [ ! -s dist/config.js ]; then
           echo "Error: config.js is empty!"
           exit 1
         fi
+        
+        # Debug: Print the actual config.js content
+        echo "Full config.js content:"
+        cat dist/config.js
 
     # 2 → Copy static files
     - name: Copy static site
