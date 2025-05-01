@@ -1,0 +1,45 @@
+name: Build & Deploy Status Board
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Pull the comma-separated lists from repo secrets
+      PING_TARGETS: ${{ secrets.PING_TARGETS }}
+      SERVICE_NAMES: ${{ secrets.SERVICE_NAMES }}
+    steps:
+    - uses: actions/checkout@v4
+
+    # 1 → Write config.js **inside the publish folder** (./dist by convention)
+    - name: Generate run-time config
+      run: |
+        mkdir -p dist
+        IFS=',' read -ra URLS <<< "${PING_TARGETS}"
+        IFS=',' read -ra NAMES <<< "${SERVICE_NAMES}"
+        echo "/* generated $(date -u) */" > dist/config.js
+        echo "window.SERVICE_CONFIG = [" >> dist/config.js
+        for i in "${!URLS[@]}"; do
+          printf "  {\n    url: \"%s\",\n    name: \"%s\"\n  },\n" "${URLS[$i]}" "${NAMES[$i]}" >> dist/config.js
+        done
+        echo "];" >> dist/config.js
+
+    # 2 → Copy static files
+    - name: Copy static site
+      run: |
+        rsync -av --exclude '.env' src/ dist/
+
+    # 3 → Deploy to GitHub Pages
+    - uses: actions/upload-pages-artifact@v3
+      with:
+        path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write      # to deploy
+      id-token: write   # to verify deployment
+    steps:
+    - uses: actions/deploy-pages@v4

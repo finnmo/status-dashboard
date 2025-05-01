@@ -1,0 +1,2 @@
+# never publish local secrets
+.env
