@@ -1,2 +1,4 @@
 # never publish local secrets
 .env
+config.js
+src/config.js
