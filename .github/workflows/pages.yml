@@ -27,7 +27,7 @@ jobs:
       PARKAID_UNDERGROUND_NAME: ${{ secrets.PARKAID_UNDERGROUND_NAME }}
       PARKING_SIGNAGE_NAME: ${{ secrets.PARKING_SIGNAGE_NAME }}
       PEOPLE_COUNTER_NAME: ${{ secrets.PEOPLE_COUNTER_NAME }}
-      
+
     steps:
     - uses: actions/checkout@v4
 
@@ -81,7 +81,7 @@ jobs:
         add_service "$PARKAID_OUTDOOR_URL" "$PARKAID_OUTDOOR_NAME"
         add_service "$PARKAID_UNDERGROUND_URL" "$PARKAID_UNDERGROUND_NAME"
         add_service "$PARKING_SIGNAGE_URL" "$PARKING_SIGNAGE_NAME"
-        
+        add_service "$PEOPLE_COUNTER_URL" "$PEOPLE_COUNTER_NAME"
         # Remove trailing comma and close array
         sed -i '$ s/,$//' config.json
         echo "]" >> config.json
