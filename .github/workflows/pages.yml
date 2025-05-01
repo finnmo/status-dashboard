@@ -61,9 +61,9 @@ jobs:
           local url=$1
           local name=$2
           if [ ! -z "$url" ] && [ ! -z "$name" ]; then
-            # Escape any special characters in the values
-            url=$(echo "$url" | sed 's/"/\\"/g' | sed 's/\n/\\n/g')
-            name=$(echo "$name" | sed 's/"/\\"/g' | sed 's/\n/\\n/g')
+            # Remove any newlines and escape special characters
+            url=$(echo "$url" | tr -d '\n\r' | sed 's/"/\\"/g')
+            name=$(echo "$name" | tr -d '\n\r' | sed 's/"/\\"/g')
             echo "  {\"url\":\"$url\",\"name\":\"$name\"}," >> config.json
             return 0
           fi
@@ -86,8 +86,16 @@ jobs:
         # Validate JSON
         if ! jq . config.json > /dev/null 2>&1; then
           echo "Error: Invalid JSON generated"
+          echo "Raw config.json content:"
           cat config.json
-          exit 1
+          echo "Trying to fix JSON..."
+          # Try to fix the JSON by removing any remaining newlines
+          sed -i 's/\n//g' config.json
+          sed -i 's/\r//g' config.json
+          if ! jq . config.json > /dev/null 2>&1; then
+            echo "Error: Could not fix JSON"
+            exit 1
+          fi
         fi
         
         # Create the final config.js
