@@ -1,0 +1,12 @@
+{
+  "name": "service-status-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard for monitoring service status",
+  "scripts": {
+    "generate-config": "node scripts/generate-config.js",
+    "dev": "npm run generate-config && npx serve src"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  }
+} 

@@ -70,45 +70,55 @@ const gauges = services.map(service => {
 
 // Function to check service status
 async function checkService(service) {
-  try {
-    const start = performance.now();
-    // Use a HEAD request instead of GET to minimize data transfer
-    const response = await fetch(service.url, { 
-      method: 'HEAD',
-      mode: 'no-cors',
-      cache: 'no-cache'
-    });
-    const end = performance.now();
+  const maxAttempts = 3;
+  const methods = ['HEAD', 'GET'];
+  let bestScore = 0;
+  let lastError = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    for (const method of methods) {
+      try {
+        const start = performance.now();
+        const response = await fetch(service.url, { 
+          method: method,
+          mode: 'no-cors',
+          cache: 'no-cache',
+          // Add a timeout
+          signal: AbortSignal.timeout(5000)
+        });
+        const end = performance.now();
+        
+        // Calculate response time in milliseconds
+        const responseTime = end - start;
+        
+        // Convert to a 0-100 score (lower is better)
+        // 0ms = 100, 1000ms = 0, capped at 1000ms
+        const score = Math.max(0, 100 - (responseTime / 10));
+        
+        console.log(`${service.name} (${method}) attempt ${attempt + 1} response time: ${responseTime}ms, score: ${score}`);
+        
+        // Keep the best score from all attempts
+        bestScore = Math.max(bestScore, score);
+        
+        // If we got a good response, we can stop trying
+        if (score > 30) {
+          return bestScore;
+        }
+      } catch (error) {
+        lastError = error;
+        console.error(`Error checking ${service.url} (${method}) attempt ${attempt + 1}:`, error);
+      }
+    }
     
-    // Calculate response time in milliseconds
-    const responseTime = end - start;
-    
-    // Convert to a 0-100 score (lower is better)
-    // 0ms = 100, 1000ms = 0, capped at 1000ms
-    const score = Math.max(0, 100 - (responseTime / 10));
-    
-    console.log(`${service.name} response time: ${responseTime}ms, score: ${score}`);
-    return score;
-  } catch (error) {
-    console.error(`Error checking ${service.url}:`, error);
-    // If first check fails, try one more time
-    try {
-      const start = performance.now();
-      const response = await fetch(service.url, { 
-        method: 'HEAD',
-        mode: 'no-cors',
-        cache: 'no-cache'
-      });
-      const end = performance.now();
-      const responseTime = end - start;
-      const score = Math.max(0, 100 - (responseTime / 10));
-      console.log(`${service.name} second attempt response time: ${responseTime}ms, score: ${score}`);
-      return score;
-    } catch (secondError) {
-      console.error(`Second attempt failed for ${service.url}:`, secondError);
-      return 0;
+    // Wait a bit before the next attempt
+    if (attempt < maxAttempts - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
+  
+  // If we get here, all attempts failed
+  console.error(`All attempts failed for ${service.name}:`, lastError);
+  return 0;
 }
 
 // Function to show toast notifications
