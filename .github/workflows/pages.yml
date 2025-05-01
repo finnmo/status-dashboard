@@ -52,8 +52,9 @@ jobs:
     - name: Generate run-time config
       run: |
         mkdir -p dist
-        echo "/* generated $(date -u) */" > dist/config.js
-        echo "window.SERVICE_CONFIG = [" >> dist/config.js
+        
+        # Create a temporary JSON file
+        echo "[" > config.json
         
         # Function to add a service if both URL and NAME are set
         add_service() {
@@ -61,9 +62,9 @@ jobs:
           local name=$2
           if [ ! -z "$url" ] && [ ! -z "$name" ]; then
             # Escape any special characters in the values
-            url=$(echo "$url" | sed 's/"/\\"/g')
-            name=$(echo "$name" | sed 's/"/\\"/g')
-            echo "  { \"url\": \"$url\", \"name\": \"$name\" }," >> dist/config.js
+            url=$(echo "$url" | sed 's/"/\\"/g' | sed 's/\n/\\n/g')
+            name=$(echo "$name" | sed 's/"/\\"/g' | sed 's/\n/\\n/g')
+            echo "  {\"url\":\"$url\",\"name\":\"$name\"}," >> config.json
             return 0
           fi
           return 1
@@ -79,22 +80,29 @@ jobs:
         add_service "$PARKING_SIGNAGE_URL" "$PARKING_SIGNAGE_NAME"
         
         # Remove trailing comma and close array
-        sed -i '$ s/,$//' dist/config.js
-        echo "];" >> dist/config.js
+        sed -i '$ s/,$//' config.json
+        echo "]" >> config.json
+        
+        # Validate JSON
+        if ! jq . config.json > /dev/null 2>&1; then
+          echo "Error: Invalid JSON generated"
+          cat config.json
+          exit 1
+        fi
+        
+        # Create the final config.js
+        echo "/* generated $(date -u) */" > dist/config.js
+        echo "window.SERVICE_CONFIG = $(cat config.json);" >> dist/config.js
         
         # Debug: Show the generated config (without sensitive data)
         echo "Generated config.js structure:"
         cat dist/config.js | grep -v "url:" | grep -v "name:"
         
-        # Verify the config is not empty and is valid JSON
+        # Verify the config is not empty
         if [ ! -s dist/config.js ]; then
           echo "Error: config.js is empty!"
           exit 1
         fi
-        
-        # Debug: Print the actual config.js content
-        echo "Full config.js content:"
-        cat dist/config.js
 
     # 2 → Copy static files
     - name: Copy static site

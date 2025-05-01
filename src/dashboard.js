@@ -68,57 +68,56 @@ const gauges = services.map(service => {
   return { service, gauge, statusDiv };
 });
 
-// Function to check service status
+// Function to check a single service with multiple attempts
 async function checkService(service) {
-  const maxAttempts = 3;
-  const methods = ['HEAD', 'GET'];
-  let bestScore = 0;
-  let lastError = null;
+  const attempts = [
+    { method: 'GET', timeout: 5000 },
+    { method: 'HEAD', timeout: 5000 },
+    { method: 'GET', timeout: 10000 }
+  ];
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    for (const method of methods) {
-      try {
-        const start = performance.now();
-        const response = await fetch(service.url, { 
-          method: method,
-          mode: 'no-cors',
-          cache: 'no-cache',
-          // Add a timeout
-          signal: AbortSignal.timeout(5000)
-        });
-        const end = performance.now();
-        
-        // Calculate response time in milliseconds
-        const responseTime = end - start;
-        
-        // Convert to a 0-100 score (lower is better)
-        // 0ms = 100, 1000ms = 0, capped at 1000ms
-        const score = Math.max(0, 100 - (responseTime / 10));
-        
-        console.log(`${service.name} (${method}) attempt ${attempt + 1} response time: ${responseTime}ms, score: ${score}`);
-        
-        // Keep the best score from all attempts
-        bestScore = Math.max(bestScore, score);
-        
-        // If we got a good response, we can stop trying
-        if (score > 30) {
-          return bestScore;
+  for (const attempt of attempts) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), attempt.timeout);
+
+      const response = await fetch(service.url, {
+        method: attempt.method,
+        mode: 'no-cors',
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         }
-      } catch (error) {
-        lastError = error;
-        console.error(`Error checking ${service.url} (${method}) attempt ${attempt + 1}:`, error);
-      }
-    }
-    
-    // Wait a bit before the next attempt
-    if (attempt < maxAttempts - 1) {
+      });
+
+      clearTimeout(timeoutId);
+      
+      // For no-cors requests, we can't check the status
+      // If we get here, the request completed
+      return true;
+    } catch (error) {
+      console.log(`Attempt failed for ${service.name} (${attempt.method}):`, error.message);
+      // Add a small delay between attempts
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
+  return false;
+}
+
+// Function to check all services with delays between each service
+async function checkAllServices() {
+  console.log('Starting service checks...');
   
-  // If we get here, all attempts failed
-  console.error(`All attempts failed for ${service.name}:`, lastError);
-  return 0;
+  for (const service of services) {
+    console.log(`Checking ${service.name}...`);
+    const isUp = await checkService(service);
+    updateGauge(service.name, isUp);
+    // Add a delay between checking different services
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  
+  console.log('All services checked');
 }
 
 // Function to show toast notifications
@@ -141,8 +140,7 @@ function showToast(message, type = 'info') {
 async function updateGauges() {
   console.log('Updating gauges...');
   for (const { service, gauge, statusDiv } of gauges) {
-    const score = await checkService(service);
-    const isOnline = score > 30;
+    const isOnline = await checkService(service);
     
     // Update the gauge color based on status
     gauge.config.levelColors = [isOnline ? '#22c55e' : '#ef4444'];
