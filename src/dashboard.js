@@ -12,6 +12,7 @@ if (!config.length) {
 const services = config.map(c => ({
   name: c.name,
   url: c.url.endsWith('/') ? c.url : c.url + '/',
+  isHttp: c.url.startsWith('http://') || c.url.startsWith('https://')
 }));
 
 console.log('Services configured:', services);
@@ -68,12 +69,40 @@ const gauges = services.map(service => {
   return { service, gauge, statusDiv };
 });
 
-// Function to check a single service with multiple attempts
-async function checkService(service) {
+// Function to check a server using ping
+async function checkServer(host) {
+  try {
+    // Extract hostname from URL if it's a full URL
+    const hostname = host.replace(/^https?:\/\//, '').split('/')[0];
+    
+    // Use a simple TCP connection attempt
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(`https://${hostname}`, {
+      method: 'HEAD',
+      mode: 'no-cors',
+      signal: controller.signal,
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    return true;
+  } catch (error) {
+    console.log(`Server check failed for ${host}:`, error.message);
+    return false;
+  }
+}
+
+// Function to check a web service
+async function checkWebService(url) {
   const attempts = [
-    { method: 'GET', timeout: 5000 },
-    { method: 'HEAD', timeout: 5000 },
-    { method: 'GET', timeout: 10000 }
+    { method: 'GET', timeout: 10000 },
+    { method: 'HEAD', timeout: 10000 },
+    { method: 'GET', timeout: 15000 }
   ];
 
   for (const attempt of attempts) {
@@ -81,7 +110,7 @@ async function checkService(service) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), attempt.timeout);
 
-      const response = await fetch(service.url, {
+      const response = await fetch(url, {
         method: attempt.method,
         mode: 'no-cors',
         signal: controller.signal,
@@ -92,17 +121,22 @@ async function checkService(service) {
       });
 
       clearTimeout(timeoutId);
-      
-      // For no-cors requests, we can't check the status
-      // If we get here, the request completed
       return true;
     } catch (error) {
-      console.log(`Attempt failed for ${service.name} (${attempt.method}):`, error.message);
-      // Add a small delay between attempts
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`Attempt failed for ${url} (${attempt.method}):`, error.message);
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
   return false;
+}
+
+// Function to check a single service
+async function checkService(service) {
+  if (service.isHttp) {
+    return await checkWebService(service.url);
+  } else {
+    return await checkServer(service.url);
+  }
 }
 
 // Function to check all services with delays between each service
@@ -113,27 +147,10 @@ async function checkAllServices() {
     console.log(`Checking ${service.name}...`);
     const isUp = await checkService(service);
     updateGauge(service.name, isUp);
-    // Add a delay between checking different services
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
   
   console.log('All services checked');
-}
-
-// Function to show toast notifications
-function showToast(message, type = 'info') {
-  const toast = document.createElement('div');
-  toast.className = `px-4 py-2 rounded-lg text-white ${
-    type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-  }`;
-  toast.textContent = message;
-  
-  const container = document.getElementById('toast-container');
-  container.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.remove();
-  }, 5000);
 }
 
 // Update all gauges
@@ -149,10 +166,6 @@ async function updateGauges() {
     // Update status text
     statusDiv.textContent = isOnline ? 'Online' : 'Offline';
     statusDiv.className = `status-text ${isOnline ? 'online' : 'offline'}`;
-    
-    if (!isOnline) {
-      showToast(`${service.name} is down`, 'error');
-    }
   }
 }
 
