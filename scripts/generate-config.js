@@ -2,36 +2,20 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const services = [
-  {
-    url: process.env.CURTIN_WEBSITE_URL,
-    name: process.env.CURTIN_WEBSITE_NAME
-  },
-  {
-    url: process.env.SMART_CAMPUS_URL,
-    name: process.env.SMART_CAMPUS_NAME
-  },
-  {
-    url: process.env.TRAKKA_URL,
-    name: process.env.TRAKKA_NAME
-  },
-  {
-    url: process.env.POWER_MONITORING_EXPERT_URL,
-    name: process.env.POWER_MONITORING_EXPERT_NAME
-  },
-  {
-    url: process.env.PARKAID_OUTDOOR_URL,
-    name: process.env.PARKAID_OUTDOOR_NAME
-  },
-  {
-    url: process.env.PARKAID_UNDERGROUND_URL,
-    name: process.env.PARKAID_UNDERGROUND_NAME
-  },
-  {
-    url: process.env.PARKING_SIGNAGE_URL,
-    name: process.env.PARKING_SIGNAGE_NAME
-  }
-].filter(service => service.url && service.name);
+// Parse the SERVICES environment variable
+// Expected format: "name1|url1,name2|url2,name3|url3"
+const parseServices = () => {
+  const servicesEnv = process.env.SERVICES || '';
+  return servicesEnv
+    .split(',')
+    .map(service => {
+      const [name, url] = service.split('|');
+      return { name: name?.trim(), url: url?.trim() };
+    })
+    .filter(service => service.name && service.url);
+};
+
+const services = parseServices();
 
 const configContent = `/* generated ${new Date().toISOString()} */
 window.SERVICE_CONFIG = ${JSON.stringify(services, null, 2)};

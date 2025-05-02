@@ -8,25 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: github-pages
     env:
-      # Service URLs
-      CURTIN_WEBSITE_URL: ${{ secrets.CURTIN_WEBSITE_URL }}
-      SMART_CAMPUS_URL: ${{ secrets.SMART_CAMPUS_URL }}
-      TRAKKA_URL: ${{ secrets.TRAKKA_URL }}
-      POWER_MONITORING_EXPERT_URL: ${{ secrets.POWER_MONITORING_EXPERT_URL }}
-      PARKAID_OUTDOOR_URL: ${{ secrets.PARKAID_OUTDOOR_URL }}
-      PARKAID_UNDERGROUND_URL: ${{ secrets.PARKAID_UNDERGROUND_URL }}
-      PARKING_SIGNAGE_URL: ${{ secrets.PARKING_SIGNAGE_URL }}
-      PEOPLE_COUNTER_URL: ${{ secrets.PEOPLE_COUNTER_URL }}
-      
-      # Service Names
-      CURTIN_WEBSITE_NAME: ${{ secrets.CURTIN_WEBSITE_NAME }}
-      SMART_CAMPUS_NAME: ${{ secrets.SMART_CAMPUS_NAME }}
-      TRAKKA_NAME: ${{ secrets.TRAKKA_NAME }}
-      POWER_MONITORING_EXPERT_NAME: ${{ secrets.POWER_MONITORING_EXPERT_NAME }}
-      PARKAID_OUTDOOR_NAME: ${{ secrets.PARKAID_OUTDOOR_NAME }}
-      PARKAID_UNDERGROUND_NAME: ${{ secrets.PARKAID_UNDERGROUND_NAME }}
-      PARKING_SIGNAGE_NAME: ${{ secrets.PARKING_SIGNAGE_NAME }}
-      PEOPLE_COUNTER_NAME: ${{ secrets.PEOPLE_COUNTER_NAME }}
+      SERVICES: ${{ secrets.SERVICES }}
 
     steps:
     - uses: actions/checkout@v4
@@ -34,22 +16,17 @@ jobs:
     # Debug: Print environment variables (without values for security)
     - name: Debug environment variables
       run: |
-        echo "Checking if secrets are set:"
-        echo "Number of secrets configured:"
-        env | grep -c "CURTIN_WEBSITE\|SMART_CAMPUS\|TRAKKA\|POWER_MONITORING\|PARKAID\|PARKING_SIGNAGE"
-        
-        echo "Checking each service:"
-        for service in "CURTIN_WEBSITE" "SMART_CAMPUS" "TRAKKA" "POWER_MONITORING_EXPERT" "PARKAID_OUTDOOR" "PARKAID_UNDERGROUND" "PARKING_SIGNAGE"; do
-          url_var="${service}_URL"
-          name_var="${service}_NAME"
-          if [ ! -z "${!url_var}" ] && [ ! -z "${!name_var}" ]; then
-            echo "$service is configured (both URL and NAME present)"
-          else
-            echo "$service is missing configuration:"
-            [ -z "${!url_var}" ] && echo "  - URL is missing"
-            [ -z "${!name_var}" ] && echo "  - NAME is missing"
-          fi
-        done
+        echo "Checking if SERVICES secret is set:"
+        if [ ! -z "$SERVICES" ]; then
+          echo "SERVICES is configured"
+          # Count the number of services (comma-separated)
+          service_count=$(echo "$SERVICES" | tr -cd ',' | wc -c)
+          service_count=$((service_count + 1))
+          echo "Number of services configured: $service_count"
+        else
+          echo "Error: SERVICES is not configured"
+          exit 1
+        fi
 
     # 1 → Write config.js **inside the publish folder** (./dist by convention)
     - name: Generate run-time config
@@ -59,29 +36,27 @@ jobs:
         # Create a temporary JSON file
         echo "[" > config.json
         
-        # Function to add a service if both URL and NAME are set
+        # Function to add a service
         add_service() {
-          local url=$1
-          local name=$2
-          if [ ! -z "$url" ] && [ ! -z "$name" ]; then
+          local service=$1
+          if [ ! -z "$service" ]; then
+            # Split the service string into name and URL
+            IFS='|' read -r name url <<< "$service"
             # Remove any newlines and escape special characters
-            url=$(echo "$url" | tr -d '\n\r' | sed 's/"/\\"/g')
             name=$(echo "$name" | tr -d '\n\r' | sed 's/"/\\"/g')
+            url=$(echo "$url" | tr -d '\n\r' | sed 's/"/\\"/g')
             echo "  {\"url\":\"$url\",\"name\":\"$name\"}," >> config.json
             return 0
           fi
           return 1
         }
         
-        # Add each service
-        add_service "$CURTIN_WEBSITE_URL" "$CURTIN_WEBSITE_NAME"
-        add_service "$SMART_CAMPUS_URL" "$SMART_CAMPUS_NAME"
-        add_service "$TRAKKA_URL" "$TRAKKA_NAME"
-        add_service "$POWER_MONITORING_EXPERT_URL" "$POWER_MONITORING_EXPERT_NAME"
-        add_service "$PARKAID_OUTDOOR_URL" "$PARKAID_OUTDOOR_NAME"
-        add_service "$PARKAID_UNDERGROUND_URL" "$PARKAID_UNDERGROUND_NAME"
-        add_service "$PARKING_SIGNAGE_URL" "$PARKING_SIGNAGE_NAME"
-        add_service "$PEOPLE_COUNTER_URL" "$PEOPLE_COUNTER_NAME"
+        # Add each service from the SERVICES environment variable
+        IFS=',' read -ra SERVICE_ARRAY <<< "$SERVICES"
+        for service in "${SERVICE_ARRAY[@]}"; do
+          add_service "$service"
+        done
+        
         # Remove trailing comma and close array
         sed -i '$ s/,$//' config.json
         echo "]" >> config.json
